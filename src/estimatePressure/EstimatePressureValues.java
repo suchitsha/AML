@@ -1,0 +1,538 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package estimatePressure;
+
+/**
+ *
+ * @author suchit sharma
+ */
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileFilter;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.apache.commons.io.filefilter.WildcardFileFilter;
+
+import Jama.Matrix;
+
+public class EstimatePressureValues {
+
+	private Double[][] topTopLeft = new Double[8][16];
+	private Double[][] topBotLeft = new Double[8][16];
+	private Double[][] topBotRight = new Double[8][16];
+	private Double[][] topTopRight = new Double[8][16];
+	private Double[][] botTopLeft = new Double[8][16];
+	private Double[][] botBotLeft = new Double[8][16];
+	private Double[][] botBotRight = new Double[8][16];
+	private Double[][] botTopRight = new Double[8][16];
+
+	// store average values for a line
+	private double avgTopTopLeftLine;
+	private double avgTopBotLeftLine;
+	private double avgTopBotRightLine;
+	private double avgTopTopRightLine;
+
+	private double avgBotTopLeftLine;
+	private double avgBotBotLeftLine;
+	private double avgBotBotRightLine;
+	private double avgBotTopRightLine;
+	
+
+
+	// storage for orientation values
+	private Map<String, LinkedList<String>> orientationData = new HashMap<String, LinkedList<String>>();
+	// number of lines in file
+	private int numberOfReadings;
+	private String currentPsrLineIndex;
+	// to record the name of session and trail
+	private String sessionNo;
+	private String trialNo;
+
+	// for reading files
+	private BufferedReader br;
+
+	// path to user folder for reading files
+	private String pathPressureData = "/media/hdisc/Documents/study/Maze/TactileData/florian/";
+	private String pathOrientation = "/media/hdisc/Documents/study/Maze/TactileData/orientationData/user/";
+	private String pathExecution = "/media/hdisc/Documents/study/Maze/TactileData/test/";
+	// private String path = "/homes/ssharma/maze/data2/";
+	//ratio of frames per second calculated from number of lines in files
+	private float ratio = Float.parseFloat("4.98259");
+
+	//Extreme Learning Machine instance
+	private ELM elm;
+	private int numSample = 0;
+	private int inputDim = 3;
+	private int outputDim = 4;
+	private int hiddenDim = 10;
+	private Matrix trainingInput;
+	private Matrix expectedValues;
+	private ArrayList<ArrayList<Double>> trainingInputList ;
+	private ArrayList<ArrayList<Double>> expectedValuesList;
+	private boolean isTrainingPhase;
+	private boolean useAngles = false;
+	
+	public static void main(String[] args) {
+		
+		EstimatePressureValues m = new EstimatePressureValues();
+		//initialize elm
+		m.elm = new ELM(m.inputDim, m.hiddenDim, m.outputDim, 1, 1);
+		//initialize list for elm
+		m.trainingInputList = new ArrayList<ArrayList<Double>>();
+		m.expectedValuesList = new ArrayList<ArrayList<Double>>();
+		m.isTrainingPhase = true;
+		
+		// read data from file
+		try {
+			m.processFile();
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if (m.br != null)
+					m.br.close();
+			} catch (IOException ex) {
+				ex.printStackTrace();
+			}
+		}
+		
+		//put values to matrices
+		m.trainingInput= Matrix.identity(m.inputDim, m.trainingInputList.size());
+		m.expectedValues=Matrix.identity(m.outputDim, m.expectedValuesList.size());
+		
+		System.out.println("Training input list: ");
+		for (int i = 0; i < m.inputDim; i++) {
+			for (int j = 0; j < m.trainingInputList.size(); j++) {
+				m.trainingInput.set(i, j, m.trainingInputList.get(j).get(i));
+				System.out.print(m.trainingInput.get(i, j) + "\t");
+			}
+			System.out.println("");
+		}
+		System.out.println("Expected value list: ");
+		for (int i = 0; i < m.outputDim; i++) {
+			for (int j = 0; j < m.expectedValuesList.size(); j++) {
+				m.expectedValues.set(i, j, m.expectedValuesList.get(j).get(i));
+				System.out.print(m.expectedValues.get(i, j) + "\t");
+			}
+			System.out.println("");
+		}
+		
+		// training the algorithm
+		Matrix outputWeights = m.elm.train(m.trainingInput, m.expectedValues, m.numSample + 1);
+		
+		//----------execute the learning algorithm----------//
+		EstimatePressureValues m2 = new EstimatePressureValues();
+		//initialize elm
+		m2.elm = new ELM(m2.inputDim, m2.hiddenDim, m2.outputDim, 1, 1);
+		//initialize list for elm
+		m2.trainingInputList = new ArrayList<ArrayList<Double>>();
+		m2.expectedValuesList = new ArrayList<ArrayList<Double>>();
+		m2.isTrainingPhase = false;
+		
+		// read data from file
+		try {
+			m2.processFile();
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if (m2.br != null)
+					m2.br.close();
+			} catch (IOException ex) {
+				ex.printStackTrace();
+			}
+		}
+		
+		//put values to matrices
+		m2.trainingInput= Matrix.identity(m2.inputDim, m2.trainingInputList.size());
+		m2.expectedValues=Matrix.identity(m2.outputDim, m2.expectedValuesList.size());
+		
+		System.out.println("Execution input list: ");
+		for (int i = 0; i < m2.inputDim; i++) {
+			for (int j = 0; j < m2.trainingInputList.size(); j++) {
+				m2.trainingInput.set(i, j, m2.trainingInputList.get(j).get(i));
+				System.out.print(m2.trainingInput.get(i, j) + "\t");
+			}
+			System.out.println("");
+		}
+		System.out.println("Execution actual output value list: ");
+		for (int i = 0; i < m2.outputDim; i++) {
+			for (int j = 0; j < m2.expectedValuesList.size(); j++) {
+				m2.expectedValues.set(i, j, m2.expectedValuesList.get(j).get(i));
+				System.out.print(m2.expectedValues.get(i, j) + "\t");
+			}
+			System.out.println("");
+		}
+		
+		//execute
+		m2.predictPressureValues(m2.trainingInput, outputWeights);
+		//m2.predictPressureValues(outputWeights);
+
+	}
+
+	// method reads files
+	void processFile() throws IOException {
+		File root;
+		if( this.isTrainingPhase )
+		{
+			root = new File(this.pathPressureData);
+		}else 
+		{
+			root = new File(this.pathExecution);
+		}
+		
+		File[] list = root.listFiles();
+		if (list == null) {
+			throw new RuntimeException(
+					"error while reading Tactile data: user directory is empty: "
+							+ root.getAbsolutePath());
+		}
+		for (File f : list) {
+			if (f.isDirectory()) {
+				// System.out.println("Traversing Dir:" + f.getAbsoluteFile());
+				File[] trailList = f.listFiles();
+				if (trailList == null) {
+					throw new RuntimeException(
+							"error while reading Tactile data: user directory is empty: "
+									+ f.getAbsoluteFile());
+				}
+				for (File trailFolder : trailList) {
+					if (trailFolder.isDirectory()) {
+						System.out.println("Traversing SubDir:"
+								+ trailFolder.getAbsoluteFile());
+						File[] trailFile = trailFolder.listFiles();
+						if (trailFile == null) {
+							throw new RuntimeException(
+									"error while reading Tactile data: csv file not found in folder:"
+											+ trailFolder.getAbsolutePath());
+						}
+						for (File csvdatafile : trailFile) {
+							// read the csv file
+							// System.out.println("Reading File:"
+							// + csvdatafile.getAbsolutePath());
+							this.br = new BufferedReader(new FileReader(
+									csvdatafile.getAbsolutePath()));
+
+							// refresh variables
+							this.numberOfReadings = 0;
+							
+							String[] temp1 = f.toString().split("/");
+							this.sessionNo = temp1[temp1.length - 1];
+							
+							String[] temp2 = csvdatafile.toString().split("/");
+							String tempfname = temp2[temp2.length - 1];
+							
+							Pattern p = Pattern.compile(".*_(Trial[0-9]+)\\.csv");
+							Matcher m = p.matcher(tempfname);
+
+							if (m.find()) {
+							    this.trialNo = m.group(1);
+							}else {
+								throw new RuntimeException(
+										"incorrect file name regex did not match");
+							}
+							
+							//get orientation data
+							BufferedReader or = this.openOrientationFile();
+							this.readOrientationFile(or);
+							this.closeFileReader(or);
+							
+							// process the data for the csv file
+							String sCurrentLine;
+							while ((sCurrentLine = this.br.readLine()) != null) {
+								//refresh line number
+								this.currentPsrLineIndex = null;
+								//get pressure values for all eight sensors for this line
+								boolean validLine = this.processPressureData(sCurrentLine);
+								
+								if(validLine){
+									//get index of frame in orientation file corresponding to current line number
+									float[] oriIndex = this.getOrientationIndex(this.currentPsrLineIndex, Integer.toString(this.numberOfReadings));
+									//TODO check validity of index number
+									String index = Integer.toString( Math.round(oriIndex[0]) );
+									//train for every nth frame (around 1000 frame for every second)
+									if(this.numberOfReadings % 100 == 0){
+										//TODO check index value its same for all files???? 
+										System.out.println(index);
+										LinkedList<String> orientationList = this.orientationData.get(index);
+										//TODO remove this if and take care of null values
+										if(orientationList!=null){
+											//prepare training data
+											this.prepareTraingData(orientationList);
+										}else{System.out.println("orientationList is: " + orientationList);}	
+									}
+								}
+							}
+							// close the buffered reader
+							try {
+								if (this.br != null)
+									this.br.close();
+							} catch (IOException ex) {
+								ex.printStackTrace();
+							}
+						}
+					}
+				}
+			} else {
+				throw new RuntimeException(
+						"error while reading Tactile data: wrong directory structure");
+			}
+		}
+	}
+
+	boolean processPressureData(String sCurrentLine) {
+
+		// remove starting lines
+		if (!sCurrentLine.startsWith("# ")) {
+			// allocate sensor values to arrays
+			String[] line = sCurrentLine.split(",");
+			if (line.length == (256 * 4 + 1)) {
+				this.numberOfReadings++;
+				// refresh average line values
+				this.avgTopTopLeftLine = 0;
+				this.avgTopBotLeftLine = 0;
+				this.avgTopTopRightLine = 0;
+				this.avgTopBotRightLine = 0;
+				this.avgBotTopLeftLine = 0;
+				this.avgBotBotLeftLine = 0;
+				this.avgBotTopRightLine = 0;
+				this.avgBotBotRightLine = 0;
+				
+				this.currentPsrLineIndex = line[0];
+				
+				for (int i = 0; i < 8; i++) {
+					for (int j = 0; j < 16; j++) {
+						// skip the first entry (time stamp)
+						this.topTopLeft[i][j] = Double.parseDouble(line[i * 16
+								+ j + 1]);
+						this.topBotLeft[i][j] = Double.parseDouble(line[256 + i
+								* 16 + j + 1]);
+						this.topBotRight[i][j] = Double.parseDouble(line[256 * 2
+								+ i * 16 + j + 1]);
+						this.topTopRight[i][j] = Double.parseDouble(line[256 * 3
+								+ i * 16 + j + 1]);
+						// get average pressure for all four sensors
+						this.avgTopTopLeftLine = this.avgTopTopLeftLine
+								+ this.topTopLeft[i][j];
+						this.avgTopBotLeftLine = this.avgTopBotLeftLine
+								+ this.topBotLeft[i][j];
+						this.avgTopTopRightLine = this.avgTopTopRightLine
+								+ this.topTopRight[i][j];
+						this.avgTopBotRightLine = this.avgTopBotRightLine
+								+ this.topBotRight[i][j];
+					}
+				}
+
+				for (int i = 8; i < 16; i++) {
+					for (int j = 0; j < 16; j++) {
+						// skip the first entry (time stamp)
+						this.botTopLeft[i - 8][j] = Double.parseDouble(line[i
+								* 16 + j + 1]);
+						this.botBotLeft[i - 8][j] = Double.parseDouble(line[256
+								+ i * 16 + j + 1]);
+						this.botBotRight[i - 8][j] = Double.parseDouble(line[256
+								* 2 + i * 16 + j + 1]);
+						this.botTopRight[i - 8][j] = Double.parseDouble(line[256
+								* 3 + i * 16 + j + 1]);
+						// get average pressure for all four sensors
+						this.avgBotTopLeftLine = this.avgBotTopLeftLine
+								+ this.botTopLeft[i - 8][j];
+						this.avgBotBotLeftLine = this.avgBotBotLeftLine
+								+ this.botBotLeft[i - 8][j];
+						this.avgBotTopRightLine = this.avgBotTopRightLine
+								+ this.botTopRight[i - 8][j];
+						this.avgBotBotRightLine = this.avgBotBotRightLine
+								+ this.botBotRight[i - 8][j];
+					}
+				}
+
+				// for average divide by total number of values
+				this.avgTopTopLeftLine = this.avgTopTopLeftLine / 128;
+				this.avgTopBotLeftLine = this.avgTopBotLeftLine / 128;
+				this.avgTopTopRightLine = this.avgTopTopRightLine / 128;
+				this.avgTopBotRightLine = this.avgTopBotRightLine / 128;
+				this.avgBotTopLeftLine = this.avgBotTopLeftLine / 128;
+				this.avgBotBotLeftLine = this.avgBotBotLeftLine / 128;
+				this.avgBotTopRightLine = this.avgBotTopRightLine / 128;
+				this.avgBotBotRightLine = this.avgBotBotRightLine / 128;
+				// System.out.println(avgTopLeftLine +" "+ avgBotLeftLine + " "
+				// +avgTopRightLine + " " + avgBotRightLine);
+
+			} else {
+				throw new RuntimeException(
+						"number of entries from tactile data file not valid, valid is 1025, check empty lines at the end of the file");
+			}
+		} else{
+			return false;
+		}
+		
+		return true;
+	}
+	
+	float[] getOrientationIndex(String psrIndex,String psrNumOfLines)
+	{
+		Float psrSize = Float.parseFloat(psrNumOfLines);
+		Float psrIndx = Float.parseFloat(psrIndex);
+		Float orientationSize = (float) this.orientationData.size();
+		
+		float orienIndex1 = psrIndx/this.ratio;
+		float orienIndex2 = (psrIndx/psrSize) * orientationSize;
+		float index[] = {orienIndex1,orienIndex2};
+		
+		return index;
+	}
+	
+	
+	// read orientation file
+	void readOrientationFile(BufferedReader bufReader) {
+		// process the data for the csv file
+		String sCurrentLine;
+		try {
+			while ((sCurrentLine = bufReader.readLine()) != null) {
+				if ((!sCurrentLine.startsWith("# "))
+						&& (!sCurrentLine.startsWith("T"))
+						&& (!sCurrentLine.startsWith("t"))
+						&& (!sCurrentLine.equals(""))) {
+					String[] lineArray = sCurrentLine.split(",");
+					LinkedList<String> tempList = new LinkedList<String>();
+					// ignore the first value (time stamp)
+					if (lineArray.length != 16) {
+						throw new RuntimeException(
+								"number of entries from orientation data file not valid, valid is 16, check number of entries or empty lines at the end of the file");
+					}
+					for (int i = 1; i < lineArray.length; i++) {
+						tempList.add(lineArray[i]);
+					}
+					//add line to the hash map
+					this.orientationData.put(lineArray[0],tempList);
+
+				}
+			}
+		} catch (IOException e) {
+			System.out.println("exception while reading orientation file");
+			e.printStackTrace();
+		}
+
+	}
+
+	// open orientation values from the file corresponding to pressure values
+	BufferedReader openOrientationFile() {
+		// append session folder name to the path
+		String pathSessionFolder = this.pathOrientation + this.sessionNo;
+		File root = new File(pathSessionFolder);
+		String filename = "*_" + this.trialNo + ".csv";
+		FileFilter fileFilter = new WildcardFileFilter(filename);
+		File[] list = root.listFiles(fileFilter);
+		if (list == null) {
+			throw new RuntimeException(
+					"error while reading orientation data: session directory does not have required file: "
+							+ root.getAbsolutePath() + filename);
+		}
+		File csvFile = list[0];
+		BufferedReader bufReader = null;
+		try {
+			System.out.println("Reading orientation file :" + csvFile);
+			bufReader = new BufferedReader(new FileReader(
+					csvFile.getAbsolutePath()));
+		} catch (FileNotFoundException e) {
+			System.out.println("file with given name:" + list[0].toString()
+					+ "not found in the folder:" + root.getAbsolutePath());
+			e.printStackTrace();
+		}
+		return bufReader;
+
+	}
+
+	void closeFileReader(BufferedReader bufReader) {
+		// close the buffered reader
+		try {
+			if (bufReader != null)
+				bufReader.close();
+		} catch (IOException ex) {
+			System.out.println("exception while closing the file reader");
+			ex.printStackTrace();
+		}
+	}
+	
+	void prepareTraingData(LinkedList<String> orientationList)
+	{	
+		
+		System.out.println("Oriention values in testing: " + orientationList);
+		ArrayList<Double> orientationAngles = new ArrayList<Double>();
+		
+		for (int i = 0; i < this.inputDim; i++) {
+			if( this.useAngles )
+			{
+				//use below line for angle with z component
+				orientationAngles.add( Double.parseDouble(orientationList.get(i + 3)) );
+			} else
+			{
+				//use below line for x,y,z components
+				orientationAngles.add( Double.parseDouble(orientationList.get(i)) );
+			}
+		}
+		this.trainingInputList.add(orientationAngles);
+		
+		ArrayList<Double> pressureValues = new ArrayList<Double>();
+		pressureValues.add( this.avgBotBotLeftLine);
+		pressureValues.add( this.avgTopTopLeftLine );
+		pressureValues.add( this.avgBotTopLeftLine );
+		pressureValues.add( this.avgTopTopRightLine );
+		
+		this.expectedValuesList.add(pressureValues);
+		
+		this.numSample++;
+		
+	}
+	void predictPressureValues(Matrix outputWeights)
+	{	
+		//sample angles with z components
+		double[][] array = { {90.661, 90.688, 0.95414},{90.236, 91.439, 1.4578},{90.315, 90.842, 0.89886} };
+		//sample x ,y, z components
+		//double[][] array = { {-47.479, -588.31, -23606},{-282.78, 229.11, -23626},{61.283, 1030, -23606} };
+		Matrix inputVal = new Matrix(array);
+		ELM lm = new ELM(this.inputDim, this.hiddenDim, this.outputDim, 1, 1);
+		Matrix result = lm.execute(inputVal, outputWeights, array.length);
+		//print result
+		System.out.println("The predicted pressure values are: ");
+		for (int i = 0; i < result.getRowDimension(); i++){
+			for (int j = 0; j < result.getColumnDimension(); j++){
+				System.out.print(result.get(i, j) + "\t");
+			}
+			System.out.println();
+		}
+	}
+	void predictPressureValues(Matrix inputVal ,Matrix outputWeights)
+	{	
+		ELM lm = new ELM(this.inputDim, this.hiddenDim, this.outputDim, 1, 1);
+		Matrix result = lm.execute(inputVal, outputWeights, inputVal.getColumnDimension() );
+		//print result
+		System.out.println("The predicted pressure values are: ");
+		for (int i = 0; i < result.getRowDimension(); i++){
+			for (int j = 0; j < result.getColumnDimension(); j++){
+				System.out.print(result.get(i, j) + "\t");
+			}
+			System.out.println();
+		}
+		System.out.println("In elm mat values of Wout :");
+		for (int i = 0; i < outputWeights.getRowDimension(); i++){
+			for (int j = 0; j < outputWeights.getColumnDimension(); j++){
+				System.out.print(outputWeights.get(i, j) + "\t");
+			}
+			System.out.println();
+		}
+	}
+}
