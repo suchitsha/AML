@@ -25,12 +25,12 @@ public class ELM {
 	private Matrix y;
 	//input weights
 	private Matrix w_in;
-	private int wInRange;
+	private double wInRange;
 	//output weights
 	private Matrix w_out;
 	//scalar
 	private Matrix b;
-	private int bRange;
+	private double bRange;
 	
 	private int inputDim;
 	private int hiddenDim;
@@ -39,7 +39,7 @@ public class ELM {
 	
 	private double MACHEPS = 2E-16;
 	
-	public ELM(int inDim,int hidDim,int outDim,int wRan,int bRan)
+	public ELM(int inDim,int hidDim,int outDim,double wRan,double bRan)
 	{
 		this.inputDim = inDim;
 		this.hiddenDim = hidDim;
@@ -93,6 +93,7 @@ public class ELM {
 		System.out.println("In elm mat dimention hthInvht : "+ hthInvht.getRowDimension() + " "+ hthInvht.getColumnDimension());
 		System.out.println("In elm mat dimention y : "+ this.y.getRowDimension() + " "+ this.y.getColumnDimension());
 		//TODO check if order of multiplication is correct
+                //this.w_out = hthInvht.transpose().times(this.y.transpose());//testing
 		this.w_out = this.y.times(hthInvht);//hthInvht.times(this.y);
 		System.out.println("In elm mat dimention w_out : "+ this.w_out.getRowDimension() + " "+ this.w_out.getColumnDimension());
 		System.out.println("In elm mat values of w_out :");
@@ -113,15 +114,55 @@ public class ELM {
 		
 		//calculate h=sigma(w_in*x +b)
 		Matrix winX = this.w_in.times(input) ;
+                
+                //print values
+                System.out.println("value of w_in is: ");
+                for (int p = 0; p < this.w_in.getRowDimension(); p++){
+			for (int q = 0; q < this.w_in.getColumnDimension(); q++){
+				System.out.print(this.w_in.get(p, q) + "\t");
+			}
+			System.out.println();
+		}
+                //print values
+                System.out.println("value of winx is: ");
+                for (int p = 0; p < winX.getRowDimension(); p++){
+			for (int q = 0; q < winX.getColumnDimension(); q++){
+				System.out.print(winX.get(p, q) + "\t");
+			}
+			System.out.println();
+		}
+                
 		Matrix winXb = new Matrix(winX.getRowDimension(),winX.getColumnDimension());
 		for(int j=0; j<winX.getColumnDimension(); j++){
 			for(int i=0; i<winX.getRowDimension(); i++){
 				winXb.set(i, j, ( winX.get(i, j) + this.b.get(i, 0) ));
 			}
 		}
+                
+                //print values
+                System.out.println("Values for matrix winxb in elm is: ");
+                for (int r = 0; r < winXb.getRowDimension(); r++){
+			for (int s = 0; s < winXb.getColumnDimension(); s++){
+				System.out.print(winXb.get(r, s) + "\t");
+			}
+			System.out.println();
+		}
+                
 		//Hidden Layer
 		h = sigma(winXb);
+                
+                //print values
+                System.out.println("Values for matrix h in elm is: ");
+                for (int k = 0; k < h.getRowDimension(); k++){
+			for (int l = 0; l < h.getColumnDimension(); l++){
+				System.out.print(h.get(k, l) + "\t");
+			}
+			System.out.println();
+		}
+                
 		//calculate predictedValues = w_out*h
+                //for tested with transposed values
+                //predictedValues = wOut.transpose().times( h.transpose() );// test
 		predictedValues = wOut.times(h);
 		
 		return predictedValues;
@@ -161,15 +202,27 @@ public class ELM {
 		return new Matrix(inverse);
 	}
 	
-	Matrix sigma(Matrix	in)
+	Matrix sigma(Matrix in)
 	{	
-		double arrOut[][] = new double[in.getRowDimension()][in.getColumnDimension()]; 
+                double arrOut[][] = new double[in.getRowDimension()][in.getColumnDimension()]; 
 		for(int i=0; i<in.getRowDimension(); i++){
 			for(int j=0; j<in.getColumnDimension(); j++){
-				arrOut[i][j] = 1/(1+ Math.exp(- in.get(i, j)) );
+                                //System.out.print( Math.pow( Math.E, (- in.get(i, j)) ) + "\t" );
+				//arrOut[i][j] = 1.0 /(1.0 + Math.exp( -( in.get(i, j) ) ) );
+                                arrOut[i][j] = 1.0 /(1.0 + Math.pow( Math.E, (- in.get(i, j)) ) );
 			}
 		}
 		Matrix out = new Matrix(arrOut);
+                
+                //print values
+                System.out.println("Output of sigma fuction is: ");
+                for (int p = 0; p < out.getRowDimension(); p++){
+			for (int q = 0; q < out.getColumnDimension(); q++){
+				System.out.print(out.get(p, q) + "\t");
+			}
+			System.out.println();
+		}
+                
 		return out;
 	}
 }

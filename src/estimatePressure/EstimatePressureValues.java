@@ -63,9 +63,12 @@ public class EstimatePressureValues {
 	private BufferedReader br;
 
 	// path to user folder for reading files
-	private String pathPressureData = "/media/hdisc/Documents/study/Maze/TactileData/florian/";
-	private String pathOrientation = "/media/hdisc/Documents/study/Maze/TactileData/orientationData/user/";
-	private String pathExecution = "/media/hdisc/Documents/study/Maze/TactileData/test/";
+	//private String pathPressureData = "/media/hdisc/Documents/study/Maze/TactileData/florian/";
+	//private String pathOrientation = "/media/hdisc/Documents/study/Maze/TactileData/orientationData/user/";
+	//private String pathExecution = "/media/hdisc/Documents/study/Maze/TactileData/test/";
+        private String pathPressureData = "/homes/ssharma/maze/data/florian/";
+	private String pathOrientation = "/homes/ssharma/maze/orientationData/";
+	private String pathExecution = "/homes/ssharma/maze/test/";
 	// private String path = "/homes/ssharma/maze/data2/";
 	//ratio of frames per second calculated from number of lines in files
 	private float ratio = Float.parseFloat("4.98259");
@@ -85,57 +88,57 @@ public class EstimatePressureValues {
 	
 	public static void main(String[] args) {
 		
-		EstimatePressureValues m = new EstimatePressureValues();
+		EstimatePressureValues training = new EstimatePressureValues();
 		//initialize elm
-		m.elm = new ELM(m.inputDim, m.hiddenDim, m.outputDim, 1, 1);
+		training.elm = new ELM(training.inputDim, training.hiddenDim, training.outputDim, 0.001, 1.0);
 		//initialize list for elm
-		m.trainingInputList = new ArrayList<ArrayList<Double>>();
-		m.expectedValuesList = new ArrayList<ArrayList<Double>>();
-		m.isTrainingPhase = true;
+		training.trainingInputList = new ArrayList<ArrayList<Double>>();
+		training.expectedValuesList = new ArrayList<ArrayList<Double>>();
+		training.isTrainingPhase = true;
 		
 		// read data from file
 		try {
-			m.processFile();
+			training.processFile();
 
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
 			try {
-				if (m.br != null)
-					m.br.close();
+				if (training.br != null)
+					training.br.close();
 			} catch (IOException ex) {
 				ex.printStackTrace();
 			}
 		}
 		
 		//put values to matrices
-		m.trainingInput= Matrix.identity(m.inputDim, m.trainingInputList.size());
-		m.expectedValues=Matrix.identity(m.outputDim, m.expectedValuesList.size());
+		training.trainingInput= Matrix.identity(training.inputDim, training.trainingInputList.size());
+		training.expectedValues=Matrix.identity(training.outputDim, training.expectedValuesList.size());
 		
 		System.out.println("Training input list: ");
-		for (int i = 0; i < m.inputDim; i++) {
-			for (int j = 0; j < m.trainingInputList.size(); j++) {
-				m.trainingInput.set(i, j, m.trainingInputList.get(j).get(i));
-				System.out.print(m.trainingInput.get(i, j) + "\t");
+		for (int i = 0; i < training.inputDim; i++) {
+			for (int j = 0; j < training.trainingInputList.size(); j++) {
+				training.trainingInput.set(i, j, training.trainingInputList.get(j).get(i));
+				System.out.print(training.trainingInput.get(i, j) + "\t");
 			}
 			System.out.println("");
 		}
 		System.out.println("Expected value list: ");
-		for (int i = 0; i < m.outputDim; i++) {
-			for (int j = 0; j < m.expectedValuesList.size(); j++) {
-				m.expectedValues.set(i, j, m.expectedValuesList.get(j).get(i));
-				System.out.print(m.expectedValues.get(i, j) + "\t");
+		for (int k = 0; k < training.outputDim; k++) {
+			for (int n = 0; n < training.expectedValuesList.size(); n++) {
+				training.expectedValues.set(k, n, training.expectedValuesList.get(n).get(k));
+				System.out.print(training.expectedValues.get(k, n) + "\t");
 			}
 			System.out.println("");
 		}
 		
 		// training the algorithm
-		Matrix outputWeights = m.elm.train(m.trainingInput, m.expectedValues, m.numSample + 1);
+		Matrix outputWeights = training.elm.train(training.trainingInput, training.expectedValues, training.numSample + 1);
 		
 		//----------execute the learning algorithm----------//
 		EstimatePressureValues m2 = new EstimatePressureValues();
 		//initialize elm
-		m2.elm = new ELM(m2.inputDim, m2.hiddenDim, m2.outputDim, 1, 1);
+		m2.elm = new ELM(m2.inputDim, m2.hiddenDim, m2.outputDim, 0.001, 1.0);
 		//initialize list for elm
 		m2.trainingInputList = new ArrayList<ArrayList<Double>>();
 		m2.expectedValuesList = new ArrayList<ArrayList<Double>>();
@@ -489,7 +492,7 @@ public class EstimatePressureValues {
 		ArrayList<Double> pressureValues = new ArrayList<Double>();
 		pressureValues.add( this.avgBotBotLeftLine);
 		pressureValues.add( this.avgTopTopLeftLine );
-		pressureValues.add( this.avgBotTopLeftLine );
+		pressureValues.add( this.avgBotBotRightLine );
 		pressureValues.add( this.avgTopTopRightLine );
 		
 		this.expectedValuesList.add(pressureValues);
@@ -504,8 +507,8 @@ public class EstimatePressureValues {
 		//sample x ,y, z components
 		//double[][] array = { {-47.479, -588.31, -23606},{-282.78, 229.11, -23626},{61.283, 1030, -23606} };
 		Matrix inputVal = new Matrix(array);
-		ELM lm = new ELM(this.inputDim, this.hiddenDim, this.outputDim, 1, 1);
-		Matrix result = lm.execute(inputVal, outputWeights, array.length);
+		//ELM lm = new ELM(this.inputDim, this.hiddenDim, this.outputDim, 0.01, 1);
+		Matrix result = this.elm.execute(inputVal, outputWeights, array.length);
 		//print result
 		System.out.println("The predicted pressure values are: ");
 		for (int i = 0; i < result.getRowDimension(); i++){
@@ -517,20 +520,20 @@ public class EstimatePressureValues {
 	}
 	void predictPressureValues(Matrix inputVal ,Matrix outputWeights)
 	{	
-		ELM lm = new ELM(this.inputDim, this.hiddenDim, this.outputDim, 1, 1);
-		Matrix result = lm.execute(inputVal, outputWeights, inputVal.getColumnDimension() );
+		//ELM elmPredict = new ELM(this.inputDim, this.hiddenDim, this.outputDim, 0.01, 1);
+		Matrix result = this.elm.execute(inputVal, outputWeights, inputVal.getColumnDimension() );
 		//print result
 		System.out.println("The predicted pressure values are: ");
-		for (int i = 0; i < result.getRowDimension(); i++){
-			for (int j = 0; j < result.getColumnDimension(); j++){
-				System.out.print(result.get(i, j) + "\t");
+		for (int t = 0; t < result.getRowDimension(); t++){
+			for (int u = 0; u < result.getColumnDimension(); u++){
+				System.out.print(result.get(t, u) + "\t");
 			}
 			System.out.println();
 		}
 		System.out.println("In elm mat values of Wout :");
-		for (int i = 0; i < outputWeights.getRowDimension(); i++){
-			for (int j = 0; j < outputWeights.getColumnDimension(); j++){
-				System.out.print(outputWeights.get(i, j) + "\t");
+		for (int p = 0; p < outputWeights.getRowDimension(); p++){
+			for (int q = 0; q < outputWeights.getColumnDimension(); q++){
+				System.out.print(outputWeights.get(p, q) + "\t");
 			}
 			System.out.println();
 		}
