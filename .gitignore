@@ -1,0 +1,7 @@
+# exclude build
+bin/
+charts/
+.settings/
+META-INF/
+.classpath
+.project
