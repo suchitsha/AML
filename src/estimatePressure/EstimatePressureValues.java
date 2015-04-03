@@ -66,9 +66,9 @@ public class EstimatePressureValues {
 	//private String pathPressureData = "/media/hdisc/Documents/study/Maze/TactileData/florian/";
 	//private String pathOrientation = "/media/hdisc/Documents/study/Maze/TactileData/orientationData/user/";
 	//private String pathExecution = "/media/hdisc/Documents/study/Maze/TactileData/test/";
-        private String pathPressureData = "/homes/ssharma/maze/data/florian/";
-	private String pathOrientation = "/homes/ssharma/maze/orientationData/";
-	private String pathExecution = "/homes/ssharma/maze/test/";
+    private String pathPressureData = "/media/USB DISK/florian/";
+	private String pathOrientation = "/media/USB DISK/orientationData/";
+	private String pathExecution = "/media/USB DISK/test/";
 	// private String path = "/homes/ssharma/maze/data2/";
 	//ratio of frames per second calculated from number of lines in files
 	private float ratio = Float.parseFloat("4.98259");
@@ -90,7 +90,7 @@ public class EstimatePressureValues {
 		
 		EstimatePressureValues training = new EstimatePressureValues();
 		//initialize elm
-		training.elm = new ELM(training.inputDim, training.hiddenDim, training.outputDim, 0.001, 1.0);
+		training.elm = new ELM(training.inputDim, training.hiddenDim, training.outputDim, 0.001, 0.001);
 		//initialize list for elm
 		training.trainingInputList = new ArrayList<ArrayList<Double>>();
 		training.expectedValuesList = new ArrayList<ArrayList<Double>>();
@@ -138,7 +138,7 @@ public class EstimatePressureValues {
 		//----------execute the learning algorithm----------//
 		EstimatePressureValues m2 = new EstimatePressureValues();
 		//initialize elm
-		m2.elm = new ELM(m2.inputDim, m2.hiddenDim, m2.outputDim, 0.001, 1.0);
+		m2.elm = new ELM(m2.inputDim, m2.hiddenDim, m2.outputDim, 0.001, 0.001);
 		//initialize list for elm
 		m2.trainingInputList = new ArrayList<ArrayList<Double>>();
 		m2.expectedValuesList = new ArrayList<ArrayList<Double>>();
@@ -526,7 +526,7 @@ public class EstimatePressureValues {
 		System.out.println("The predicted pressure values are: ");
 		for (int t = 0; t < result.getRowDimension(); t++){
 			for (int u = 0; u < result.getColumnDimension(); u++){
-				System.out.print(result.get(t, u) + "\t");
+				System.out.print( result.get(t, u)  + "\t");
 			}
 			System.out.println();
 		}

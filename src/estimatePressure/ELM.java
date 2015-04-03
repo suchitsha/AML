@@ -53,6 +53,7 @@ public class ELM {
 		for(int i=0; i<this.hiddenDim; i++){
 			for(int j=0; j<this.inputDim; j++){
 				this.w_in.set(i, j, (2*this.wInRange*Math.random() - this.wInRange));
+				//this.w_in.set(i, j, ( this.wInRange*Math.random() ) );
 				if(j==0){
 					this.b.set(i, 0, (2*this.bRange*Math.random() - this.bRange));
 				}
@@ -76,10 +77,15 @@ public class ELM {
 			}
 		}
 		this.hx = sigma(winXb);
+		System.out.println("In elm mat dimention hx : "+ this.hx.getRowDimension() + " "+ this.hx.getColumnDimension());
 		
+		//calculate w_out = pseudoinverse(H).Y
+		this.w_out = this.y.times(this.pseudoInverse(this.hx));
+		/*
+		//TODO check which of these is the right way to get w_out = h-1.y
 		//calculate w_out = ((H'H)^-1) H'Y
 		Matrix hth = this.hx.transpose().times(this.hx);
-		System.out.println("In elm mat dimention hx : "+ this.hx.getRowDimension() + " "+ this.hx.getColumnDimension());
+		System.out.println("In elm mat dimension hx : "+ this.hx.getRowDimension() + " "+ this.hx.getColumnDimension());
 		Matrix hthInv;
 		try {
 			hthInv = hth.inverse();
@@ -88,15 +94,18 @@ public class ELM {
 			System.out.println("In elm mat catch");
 			hthInv = this.pseudoInverse(hth);
 		}
-		System.out.println("In elm mat dimention hthInv : "+ hthInv.getRowDimension() + " "+ hthInv.getColumnDimension());
+		System.out.println("In elm mat dimension hthInv : "+ hthInv.getRowDimension() + " "+ hthInv.getColumnDimension());
 		Matrix hthInvht = hthInv.times( this.hx.transpose() );
-		System.out.println("In elm mat dimention hthInvht : "+ hthInvht.getRowDimension() + " "+ hthInvht.getColumnDimension());
-		System.out.println("In elm mat dimention y : "+ this.y.getRowDimension() + " "+ this.y.getColumnDimension());
+		System.out.println("In elm mat dimension hthInvht : "+ hthInvht.getRowDimension() + " "+ hthInvht.getColumnDimension());
+		System.out.println("In elm mat dimension y : "+ this.y.getRowDimension() + " "+ this.y.getColumnDimension());
 		//TODO check if order of multiplication is correct
                 //this.w_out = hthInvht.transpose().times(this.y.transpose());//testing
 		this.w_out = this.y.times(hthInvht);//hthInvht.times(this.y);
+		*/
+		
 		System.out.println("In elm mat dimention w_out : "+ this.w_out.getRowDimension() + " "+ this.w_out.getColumnDimension());
 		System.out.println("In elm mat values of w_out :");
+		//print matrix
 		for (int i = 0; i < this.w_out.getRowDimension(); i++){
 			for (int j = 0; j < this.w_out.getColumnDimension(); j++){
 				System.out.print(this.w_out.get(i, j) + "\t");
