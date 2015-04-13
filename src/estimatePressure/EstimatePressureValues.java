@@ -23,6 +23,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.io.filefilter.WildcardFileFilter;
+import org.jfree.ui.RefineryUtilities;
 
 import Jama.Matrix;
 
@@ -66,7 +67,7 @@ public class EstimatePressureValues {
 	//private String pathPressureData = "/media/hdisc/Documents/study/Maze/TactileData/florian/";
 	//private String pathOrientation = "/media/hdisc/Documents/study/Maze/TactileData/orientationData/user/";
 	//private String pathExecution = "/media/hdisc/Documents/study/Maze/TactileData/test/";
-    private String pathPressureData = "/media/USB DISK/florian/";
+    private String pathPressureData = "/media/USB DISK/florian2/";
 	private String pathOrientation = "/media/USB DISK/orientationData/";
 	private String pathExecution = "/media/USB DISK/test/";
 	// private String path = "/homes/ssharma/maze/data2/";
@@ -77,7 +78,7 @@ public class EstimatePressureValues {
 	private ELM elm;
 	private int numSample = 0;
 	private int inputDim = 3;
-	private int outputDim = 4;
+	private int outputDim = 8;
 	private int hiddenDim = 10;
 	private Matrix trainingInput;
 	private Matrix expectedValues;
@@ -90,7 +91,13 @@ public class EstimatePressureValues {
 		
 		EstimatePressureValues training = new EstimatePressureValues();
 		//initialize elm
-		training.elm = new ELM(training.inputDim, training.hiddenDim, training.outputDim, 0.001, 0.001);
+		//training.elm = new ELM(training.inputDim, training.hiddenDim, training.outputDim, 0.1, 0.1);
+		if(training.useAngles){
+			training.elm = new ELM(training.inputDim, training.hiddenDim, training.outputDim, 10.0, 0.1);
+		} else{
+			training.elm = new ELM(training.inputDim, training.hiddenDim, training.outputDim, 1.0, 0.1);
+		}
+		
 		//initialize list for elm
 		training.trainingInputList = new ArrayList<ArrayList<Double>>();
 		training.expectedValuesList = new ArrayList<ArrayList<Double>>();
@@ -113,7 +120,7 @@ public class EstimatePressureValues {
 		
 		//put values to matrices
 		training.trainingInput= Matrix.identity(training.inputDim, training.trainingInputList.size());
-		training.expectedValues=Matrix.identity(training.outputDim, training.expectedValuesList.size());
+		training.expectedValues= Matrix.identity(training.outputDim, training.expectedValuesList.size());
 		
 		System.out.println("Training input list: ");
 		for (int i = 0; i < training.inputDim; i++) {
@@ -135,10 +142,24 @@ public class EstimatePressureValues {
 		// training the algorithm
 		Matrix outputWeights = training.elm.train(training.trainingInput, training.expectedValues, training.numSample + 1);
 		
+		/*System.out.println("training output Wout is: ");
+		for (int k = 0; k < outputWeights.getRowDimension(); k++) {
+			for (int n = 0; n < outputWeights.getColumnDimension(); n++) {
+				System.out.print(outputWeights.get(k, n) + "\t");
+			}
+			System.out.println("");
+		}*/
+		
 		//----------execute the learning algorithm----------//
 		EstimatePressureValues m2 = new EstimatePressureValues();
 		//initialize elm
-		m2.elm = new ELM(m2.inputDim, m2.hiddenDim, m2.outputDim, 0.001, 0.001);
+		//m2.elm = new ELM(m2.inputDim, m2.hiddenDim, m2.outputDim, 0.1, 0.1);
+		if(m2.useAngles){
+			m2.elm = new ELM(m2.inputDim, m2.hiddenDim, m2.outputDim, 10.0, 0.1);
+		}else {
+			m2.elm = new ELM(m2.inputDim, m2.hiddenDim, m2.outputDim, 1.0, 0.1);
+		}
+		
 		//initialize list for elm
 		m2.trainingInputList = new ArrayList<ArrayList<Double>>();
 		m2.expectedValuesList = new ArrayList<ArrayList<Double>>();
@@ -181,7 +202,7 @@ public class EstimatePressureValues {
 		}
 		
 		//execute
-		m2.predictPressureValues(m2.trainingInput, outputWeights);
+		m2.predictPressureValues( m2.trainingInput, outputWeights , m2.expectedValues );
 		//m2.predictPressureValues(outputWeights);
 
 	}
@@ -480,20 +501,45 @@ public class EstimatePressureValues {
 			if( this.useAngles )
 			{
 				//use below line for angle with z component
-				orientationAngles.add( Double.parseDouble(orientationList.get(i + 3)) );
+				//orientationAngles.add( Double.parseDouble(orientationList.get(i + 3)) );
+				double angle = Double.parseDouble(orientationList.get(i + 3) ) ;
+				if (i < 2) {
+					// scale down the x and y angles as x and y ~= 91.00 or
+					// 89.00 and z is =~ -1.00 to 1.00 so that all three angels
+					// have same range , this helps in regulating the values of
+					// sigmoid function
+					angle = angle - 90;
+				}
+				orientationAngles.add( angle );
 			} else
 			{
-				//use below line for x,y,z components
-				orientationAngles.add( Double.parseDouble(orientationList.get(i)) );
+				// use below line for x,y,z components
+				//orientationAngles.add(Double.parseDouble(orientationList.get(i)));
+				
+				// scale down the z components as x and y ~= 0 to 100
+				// and z is =~ -10000.00 so that all three components
+				// have same range , this helps in regulating the values of
+				// sigmoid function
+				double values = Double.parseDouble(orientationList.get(i)) ;
+				if(i==2){
+					values = values + 23500 ;
+				}
+				values = values/100 ;
+				orientationAngles.add( values );
 			}
 		}
 		this.trainingInputList.add(orientationAngles);
 		
 		ArrayList<Double> pressureValues = new ArrayList<Double>();
+		pressureValues.add( this.avgTopBotLeftLine );
 		pressureValues.add( this.avgBotBotLeftLine);
 		pressureValues.add( this.avgTopTopLeftLine );
+		pressureValues.add( this.avgBotTopLeftLine);
 		pressureValues.add( this.avgBotBotRightLine );
+		pressureValues.add( this.avgTopBotRightLine );
 		pressureValues.add( this.avgTopTopRightLine );
+		pressureValues.add( this.avgBotTopRightLine );
+		
 		
 		this.expectedValuesList.add(pressureValues);
 		
@@ -518,7 +564,9 @@ public class EstimatePressureValues {
 			System.out.println();
 		}
 	}
-	void predictPressureValues(Matrix inputVal ,Matrix outputWeights)
+	
+	//predict pressure values 
+	void predictPressureValues(Matrix inputVal ,Matrix outputWeights , Matrix expectedOutput)
 	{	
 		//ELM elmPredict = new ELM(this.inputDim, this.hiddenDim, this.outputDim, 0.01, 1);
 		Matrix result = this.elm.execute(inputVal, outputWeights, inputVal.getColumnDimension() );
@@ -537,5 +585,66 @@ public class EstimatePressureValues {
 			}
 			System.out.println();
 		}
+		
+		this.calculateError( expectedOutput , result );
 	}
+	
+	//calculate error
+	void calculateError(Matrix expectedOutput , Matrix result) {
+		Matrix error = new Matrix( expectedOutput.getRowDimension(), expectedOutput.getColumnDimension() );
+		System.out.println("Error values are: ");
+		for (int i = 0; i < error.getRowDimension(); i++) {
+			for (int j = 0; j < error.getColumnDimension(); j++) {
+				error.set(i, j,  ( expectedOutput.get(i, j) - result.get(i, j) ) );
+				System.out.print(error.get(i, j) + "\t");
+			}
+			System.out.println("");
+		}
+		this.drawCharts(error);
+	}
+	
+	//draw charts
+	void drawCharts(Matrix error){
+		CreateGraph chart1 = new CreateGraph("Error values in predicted pressure" , "Error values", error,0);
+		chart1.pack( );
+		RefineryUtilities.centerFrameOnScreen( chart1 );
+		chart1.setVisible( true );
+		
+		CreateGraph chart2 = new CreateGraph("Error values in predicted pressure" , "Error values", error,1);
+		chart2.pack( );
+		RefineryUtilities.centerFrameOnScreen( chart2 );
+		chart2.setVisible( true );
+		
+		CreateGraph chart3 = new CreateGraph("Error values in predicted pressure" , "Error values", error,2);
+		chart3.pack( );
+		RefineryUtilities.centerFrameOnScreen( chart3 );
+		chart3.setVisible( true );
+		
+		CreateGraph chart4 = new CreateGraph("Error values in predicted pressure" , "Error values", error,3);
+		chart4.pack( );
+		RefineryUtilities.centerFrameOnScreen( chart4 );
+		chart4.setVisible( true );
+		
+		CreateGraph chart5 = new CreateGraph("Error values in predicted pressure" , "Error values", error,4);
+		chart5.pack( );
+		RefineryUtilities.centerFrameOnScreen( chart5 );
+		chart5.setVisible( true );
+		
+		CreateGraph chart6 = new CreateGraph("Error values in predicted pressure" , "Error values", error,5);
+		chart6.pack( );
+		RefineryUtilities.centerFrameOnScreen( chart6 );
+		chart6.setVisible( true );
+		
+		CreateGraph chart7 = new CreateGraph("Error values in predicted pressure" , "Error values", error,6);
+		chart7.pack( );
+		RefineryUtilities.centerFrameOnScreen( chart7 );
+		chart7.setVisible( true );
+		
+		CreateGraph chart8 = new CreateGraph("Error values in predicted pressure" , "Error values", error,7);
+		chart8.pack( );
+		RefineryUtilities.centerFrameOnScreen( chart8 );
+		chart8.setVisible( true );
+		
+	}
+	
 }

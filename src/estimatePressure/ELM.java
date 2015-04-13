@@ -80,8 +80,8 @@ public class ELM {
 		System.out.println("In elm mat dimention hx : "+ this.hx.getRowDimension() + " "+ this.hx.getColumnDimension());
 		
 		//calculate w_out = pseudoinverse(H).Y
-		this.w_out = this.y.times(this.pseudoInverse(this.hx));
-		/*
+		//this.w_out = this.y.times(this.pseudoInverse(this.hx));
+		/**/
 		//TODO check which of these is the right way to get w_out = h-1.y
 		//calculate w_out = ((H'H)^-1) H'Y
 		Matrix hth = this.hx.transpose().times(this.hx);
@@ -101,7 +101,7 @@ public class ELM {
 		//TODO check if order of multiplication is correct
                 //this.w_out = hthInvht.transpose().times(this.y.transpose());//testing
 		this.w_out = this.y.times(hthInvht);//hthInvht.times(this.y);
-		*/
+		/**/
 		
 		System.out.println("In elm mat dimention w_out : "+ this.w_out.getRowDimension() + " "+ this.w_out.getColumnDimension());
 		System.out.println("In elm mat values of w_out :");
