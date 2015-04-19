@@ -292,7 +292,6 @@ public class EstimatePressureValues {
 								if(validLine){
 									//get index of frame in orientation file corresponding to current line number
 									float[] oriIndex = this.getOrientationIndex(this.currentPsrLineIndex, this.indexOfReadings );
-									//TODO check validity of index number
 									String index = Integer.toString( Math.round(oriIndex[1]) );
 									//train for every nth frame (around 1000 frame for every second)
 									if(  Integer.parseInt( this.currentPsrLineIndex ) % 100 < 1){
