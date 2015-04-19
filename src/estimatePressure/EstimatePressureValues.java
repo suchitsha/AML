@@ -54,7 +54,7 @@ public class EstimatePressureValues {
 	// storage for orientation values
 	private Map<String, LinkedList<String>> orientationData = new HashMap<String, LinkedList<String>>();
 	// number of lines in file
-	private int numberOfReadings;
+	private String indexOfReadings;
 	private String currentPsrLineIndex;
 	// to record the name of session and trail
 	private String sessionNo;
@@ -247,11 +247,18 @@ public class EstimatePressureValues {
 							// read the csv file
 							// System.out.println("Reading File:"
 							// + csvdatafile.getAbsolutePath());
+							
+							
 							this.br = new BufferedReader(new FileReader(
 									csvdatafile.getAbsolutePath()));
-
+							
 							// refresh variables
-							this.numberOfReadings = 0;
+							this.indexOfReadings = null;
+							//read number of lines in a file, this method should be optimized
+							BufferedReader b = new BufferedReader(new FileReader(
+									csvdatafile.getAbsolutePath()) );
+							this.getNumberOfLinesInFile(b);
+							b.close();
 							
 							String[] temp1 = f.toString().split("/");
 							this.sessionNo = temp1[temp1.length - 1];
@@ -284,19 +291,20 @@ public class EstimatePressureValues {
 								
 								if(validLine){
 									//get index of frame in orientation file corresponding to current line number
-									float[] oriIndex = this.getOrientationIndex(this.currentPsrLineIndex, Integer.toString(this.numberOfReadings));
+									float[] oriIndex = this.getOrientationIndex(this.currentPsrLineIndex, this.indexOfReadings );
 									//TODO check validity of index number
-									String index = Integer.toString( Math.round(oriIndex[0]) );
+									String index = Integer.toString( Math.round(oriIndex[1]) );
 									//train for every nth frame (around 1000 frame for every second)
-									if(this.numberOfReadings % 100 == 0){
-										//TODO check index value its same for all files???? 
-										System.out.println(index);
+									if(  Integer.parseInt( this.currentPsrLineIndex ) % 100 < 1){
+										//System.out.println(index);
 										LinkedList<String> orientationList = this.orientationData.get(index);
-										//TODO remove this if and take care of null values
 										if(orientationList!=null){
+											//System.out.println("orientationList is: " + orientationList);
 											//prepare training data
 											this.prepareTraingData(orientationList);
-										}else{System.out.println("orientationList is: " + orientationList);}	
+										}else{
+											System.out.println("orientationList is: " + orientationList);
+										}	
 									}
 								}
 							}
@@ -316,7 +324,25 @@ public class EstimatePressureValues {
 			}
 		}
 	}
-
+	
+	//returns number of lines in the file , not a good way to do this but fine for now
+	void getNumberOfLinesInFile(BufferedReader b) throws IOException {
+		String sCurrentLine;
+		while ((sCurrentLine = b.readLine()) != null) {
+			// remove starting lines
+			if (!sCurrentLine.startsWith("# ")) {
+				// allocate sensor values to arrays
+				String[] line = sCurrentLine.split(",");
+				if (line.length == (256 * 4 + 1)) {
+					this.indexOfReadings = line[0];
+				} else {
+					throw new RuntimeException(
+							"number of entries from tactile data file not valid, valid is 1025, check empty lines at the end of the file");
+				}
+			}
+		}
+	}
+	
 	boolean processPressureData(String sCurrentLine) {
 
 		// remove starting lines
@@ -324,7 +350,6 @@ public class EstimatePressureValues {
 			// allocate sensor values to arrays
 			String[] line = sCurrentLine.split(",");
 			if (line.length == (256 * 4 + 1)) {
-				this.numberOfReadings++;
 				// refresh average line values
 				this.avgTopTopLeftLine = 0;
 				this.avgTopBotLeftLine = 0;
@@ -414,6 +439,8 @@ public class EstimatePressureValues {
 		
 		float orienIndex1 = psrIndx/this.ratio;
 		float orienIndex2 = (psrIndx/psrSize) * orientationSize;
+//		float rat = psrIndx/psrSize;
+//		System.out.println("Ratio is :" + rat);
 		float index[] = {orienIndex1,orienIndex2};
 		
 		return index;
@@ -494,7 +521,7 @@ public class EstimatePressureValues {
 	void prepareTraingData(LinkedList<String> orientationList)
 	{	
 		
-		System.out.println("Oriention values in testing: " + orientationList);
+		//System.out.println("Oriention values in testing: " + orientationList);
 		ArrayList<Double> orientationAngles = new ArrayList<Double>();
 		
 		for (int i = 0; i < this.inputDim; i++) {
@@ -592,13 +619,24 @@ public class EstimatePressureValues {
 	//calculate error
 	void calculateError(Matrix expectedOutput , Matrix result) {
 		Matrix error = new Matrix( expectedOutput.getRowDimension(), expectedOutput.getColumnDimension() );
+		double[] avgError = new double[error.getRowDimension()] ; 
 		System.out.println("Error values are: ");
 		for (int i = 0; i < error.getRowDimension(); i++) {
 			for (int j = 0; j < error.getColumnDimension(); j++) {
-				error.set(i, j,  ( expectedOutput.get(i, j) - result.get(i, j) ) );
+				if( Math.abs(expectedOutput.get(i, j)) > Math.abs(result.get(i, j)) ){
+					error.set(i, j,  ( Math.abs(expectedOutput.get(i, j)) - Math.abs(result.get(i, j)) ) );
+					avgError[i] = avgError[i] + error.get(i,j);
+				}else{
+					error.set(i, j,  ( Math.abs(result.get(i, j)) - Math.abs(expectedOutput.get(i, j)) ) );
+					avgError[i] = avgError[i] + error.get(i,j);
+				}
 				System.out.print(error.get(i, j) + "\t");
 			}
+			avgError[i] = avgError[i]/error.getColumnDimension();
 			System.out.println("");
+		}
+		for (int k = 0; k < avgError.length; k++) {
+			System.out.println("Avg error value: " + k  + " : " + avgError[k]);
 		}
 		this.drawCharts(error);
 	}
