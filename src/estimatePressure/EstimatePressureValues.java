@@ -79,7 +79,7 @@ public class EstimatePressureValues {
 	private int numSample = 0;
 	private int inputDim = 3;
 	private int outputDim = 8;
-	private int hiddenDim = 10;
+	private int hiddenDim = 3;
 	private Matrix trainingInput;
 	private Matrix expectedValues;
 	private ArrayList<ArrayList<Double>> trainingInputList ;
@@ -294,7 +294,7 @@ public class EstimatePressureValues {
 									float[] oriIndex = this.getOrientationIndex(this.currentPsrLineIndex, this.indexOfReadings );
 									String index = Integer.toString( Math.round(oriIndex[1]) );
 									//train for every nth frame (around 1000 frame for every second)
-									if(  Integer.parseInt( this.currentPsrLineIndex ) % 100 < 1){
+									if(  Integer.parseInt( this.currentPsrLineIndex ) % 90 < 1){
 										//System.out.println(index);
 										LinkedList<String> orientationList = this.orientationData.get(index);
 										if(orientationList!=null){
